@@ -84,11 +84,11 @@ extHcalReadoutName = "HCalExtBarrelReadout"
 # Configure saving of calorimeter hits
 from Configurables import SimG4SaveCalHits
 saveecalbarreltool = SimG4SaveCalHits("saveECalBarrelHits", readoutNames=[ecalBarrelReadoutName])
-saveecalbarreltool.positionedCaloHits.Path = "ECalBarrelPositionedHits"
+#saveecalbarreltool.positionedCaloHits.Path = "ECalBarrelPositionedHits"
 saveecalbarreltool.CaloHits.Path = "ECalBarrelHits"
 
 savehcaltool = SimG4SaveCalHits("saveHCalBarrelHits", readoutNames=[hcalReadoutName])
-savehcaltool.positionedCaloHits.Path = "HCalPositionedHits"
+#savehcaltool.positionedCaloHits.Path = "HCalPositionedHits"
 savehcaltool.CaloHits.Path = "HCalBarrelHits"
 
 # next, create the G4 algorithm, giving the list of names of tools ("XX/YY")
