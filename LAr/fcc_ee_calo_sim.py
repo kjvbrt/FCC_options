@@ -9,7 +9,7 @@ thetaMin = 80.
 thetaMax = 100.
 magneticField = False
 
-from Gaudi.Configuration import WARNING, INFO
+from Gaudi.Configuration import INFO  # , WARNING
 
 from Configurables import FCCDataSvc
 podioevent = FCCDataSvc("EventDataSvc")
@@ -46,7 +46,7 @@ path_to_detector = os.environ.get("FCCDETECTORS", "")
 detectors_to_use = ['Detector/DetFCCeeIDEA-LAr/compact/FCCee_DectMaster.xml', ]
 # prefix all xmls with path_to_detector
 geoservice.detectors = [os.path.join(path_to_detector, _det) for _det in detectors_to_use]
-geoservice.OutputLevel = WARNING
+# geoservice.OutputLevel = WARNING
 
 # Geant4 service
 # Configures the Geant simulation: geometry, physics list and user actions
@@ -54,7 +54,9 @@ from Configurables import SimG4Svc
 geantservice = SimG4Svc("SimG4Svc",
                         detector='SimG4DD4hepDetector',
                         physicslist="SimG4FtfpBert",
-                        actions="SimG4FullSimActions")
+                        actions="SimG4FullSimActions",
+                        # OutputLevel=WARNING)
+                        OutputLevel=INFO)
 
 # Range cut
 geantservice.g4PreInitCommands += ["/run/setCut 0.1 mm"]
@@ -84,12 +86,10 @@ extHcalReadoutName = "HCalExtBarrelReadout"
 # Configure saving of calorimeter hits
 from Configurables import SimG4SaveCalHits
 saveecalbarreltool = SimG4SaveCalHits("saveECalBarrelHits", readoutNames=[ecalBarrelReadoutName])
-#saveecalbarreltool.positionedCaloHits.Path = "ECalBarrelPositionedHits"
-saveecalbarreltool.CaloHits.Path = "ECalBarrelHits"
+saveecalbarreltool.CaloHits.Path = "SimECalBarrelHits"
 
 savehcaltool = SimG4SaveCalHits("saveHCalBarrelHits", readoutNames=[hcalReadoutName])
-#savehcaltool.positionedCaloHits.Path = "HCalPositionedHits"
-savehcaltool.CaloHits.Path = "HCalBarrelHits"
+savehcaltool.CaloHits.Path = "SimHCalBarrelHits"
 
 # next, create the G4 algorithm, giving the list of names of tools ("XX/YY")
 from Configurables import SimG4PrimariesFromEdmTool
@@ -133,10 +133,10 @@ createEcalBarrelCellsStep1 = CreateCaloCells("CreateECalBarrelCellsStep1",
                                              cells="ECalBarrelCellsStep1")
 
 # Ecal barrel cell positions
-from Configurables import CreateVolumeCaloPositions
-positionsEcalBarrel = CreateVolumeCaloPositions("positionsBarrelEcal", OutputLevel=INFO)
-positionsEcalBarrel.hits.Path = "ECalBarrelCellsStep1"
-positionsEcalBarrel.positionedHits.Path = "ECalBarrelPositions"
+#from Configurables import CreateVolumeCaloPositions
+#positionsEcalBarrel = CreateVolumeCaloPositions("positionsBarrelEcal", OutputLevel=INFO)
+#positionsEcalBarrel.hits.Path = "ECalBarrelCellsStep1"
+#positionsEcalBarrel.positionedHits.Path = "ECalBarrelPositions"
 # Use Phi-Eta segmentation in ECal barrel
 from Configurables import RedoSegmentation
 resegmentEcalBarrel = RedoSegmentation("ReSegmentationEcal",
@@ -147,7 +147,7 @@ resegmentEcalBarrel = RedoSegmentation("ReSegmentationEcal",
                                        # new bitfield (readout), with new segmentation
                                        newReadoutName=ecalBarrelReadoutNamePhiEta,
                                        OutputLevel=INFO,
-                                       inhits="ECalBarrelPositions",
+                                       inhits="ECalBarrelCellsStep1",
                                        outhits="ECalBarrelCellsStep2")
 createEcalBarrelCells = CreateCaloCells("CreateECalBarrelCells",
                                         doCellCalibration=False,
@@ -178,7 +178,7 @@ out = PodioOutput("out",
 out.outputCommands = ["keep *"]
 
 import uuid
-out.filename = "output_fullCalo_SimAndDigi_"+str(momentum)+"GeV_"+uuid.uuid4().hex+".root"
+out.filename = "output_fullCalo_SimAndDigi_" + str(round(momentum)) + "GeV_" + uuid.uuid4().hex + ".root"
 
 #CPU information
 from Configurables import AuditorSvc, ChronoAuditor
@@ -189,7 +189,6 @@ genalg_pgun.AuditExecute = True
 hepmc_converter.AuditExecute = True
 geantsim.AuditExecute = True
 createEcalBarrelCellsStep1.AuditExecute = True
-positionsEcalBarrel.AuditExecute = True
 resegmentEcalBarrel.AuditExecute = True
 createEcalBarrelCells.AuditExecute = True
 createHcalBarrelCells.AuditExecute = True
@@ -201,7 +200,6 @@ ApplicationMgr(
             hepmc_converter,
             geantsim,
             createEcalBarrelCellsStep1,
-            positionsEcalBarrel,
             resegmentEcalBarrel,
             createEcalBarrelCells,
             createHcalBarrelCells,
