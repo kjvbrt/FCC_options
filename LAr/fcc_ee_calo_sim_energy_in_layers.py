@@ -1,4 +1,4 @@
-from Gaudi.Configuration import INFO, DEBUG, WARNING
+from Gaudi.Configuration import WARNING, VERBOSE
 
 # Electron momentum in GeV
 momentum = 50
@@ -6,14 +6,11 @@ momentum = 50
 theta = 90.
 thetaSpread = 10.
 
-samplingFractions = [0.24833] * 1 + [0.09482] * 1 + [0.12242] * 1 + [0.14182] * 1 + \
-                    [0.15667] * 1 + [0.16923] * 1 + [0.17980] * 1 + [0.20085] * 1
+samplingFractions = [0.303451138049] * 1 + [0.111872504159] * 1 + [0.135806495306] * 1 + [0.151772636618] * 1 + \
+                    [0.163397436122] * 1 + [0.172566977313] * 1 + [0.179855253903] * 1 + [0.186838417657] * 1 + \
+                    [0.192865946689] * 1 + [0.197420241611] * 1 + [0.202066552306] * 1 + [0.22646764465] * 1
 
 #----------------------------------------------------------------------------------------------------------------------
-
-# Random string for output files
-import uuid
-rndstr = uuid.uuid4().hex[0:16]
 
 # Data service
 from Configurables import FCCDataSvc
@@ -78,9 +75,9 @@ particle_converter.GenParticles.Path = "GenParticles"
 # next, create the G4 algorithm, giving the list of names of tools ("XX/YY")
 geantsim = SimG4Alg("SimG4Alg",
                     outputs=[saveecaltool],
-                    eventProvider=particle_converter,
-                    OutputLevel=DEBUG)
+                    eventProvider=particle_converter)
 
+# Create calorimeter cells from calorimeter hits
 from Configurables import CreateCaloCells
 createcellsBarrel = CreateCaloCells("CreateCaloCellsBarrel",
                                     doCellCalibration=False,
@@ -89,39 +86,32 @@ createcellsBarrel = CreateCaloCells("CreateCaloCellsBarrel",
 createcellsBarrel.hits.Path = "ECalBarrelHits"
 createcellsBarrel.cells.Path = "ECalBarrelCells"
 
-from Configurables import UpstreamMaterial
-hist = UpstreamMaterial("histsPresampler",
-                        energyAxis=momentum,
-                        phiAxis=0.1,
-                        readoutName="ECalBarrelEta",
-                        layerFieldName="layer",
-                        numLayers=8,
-                        # sampling fraction is given as the upstream correction will be applied on calibrated cells
-                        samplingFraction=samplingFractions,
-                        OutputLevel=DEBUG)
-hist.deposits.Path = "ECalBarrelCells"
-hist.particle.Path = "GenParticles"
+# Determine energy deposited in every calorimeter layer
+from Configurables import EnergyInCaloLayers
+caloLayers = EnergyInCaloLayers("caloLayers",
+                                readoutName="ECalBarrelEta",
+                                numLayers=12,
+                                # sampling fraction is given as the energy correction will be applied on calibrated
+                                # cells
+                                samplingFractions=samplingFractions,
+                                OutputLevel=VERBOSE)
+caloLayers.deposits.Path = "ECalBarrelCells"
+caloLayers.particle.Path = "GenParticles"
 
-# from Configurables import THistSvc
-# THistSvc().Output = ["det DATAFILE='histUpstream_fccee_hits.root' TYP='ROOT' OPT='RECREATE'"]
-# THistSvc().PrintAll = True
-# THistSvc().AutoSave = True
-# THistSvc().AutoFlush = True
-# THistSvc().OutputLevel = INFO
-
-#CPU information
+# Print CPU information
 from Configurables import AuditorSvc, ChronoAuditor
 chra = ChronoAuditor()
 audsvc = AuditorSvc()
 audsvc.Auditors = [chra]
 geantsim.AuditExecute = True
-hist.AuditExecute = True
+caloLayers.AuditExecute = True
 
+# PODIO output
 from Configurables import PodioOutput
-### PODIO algorithm
-out = PodioOutput("out", OutputLevel=DEBUG)
-out.outputCommands = ["keep *"]
-out.filename = "fccee_upstreamMaterial_inclinedEcal.root"
+import uuid
+podio_out = PodioOutput("PodioOut",)
+podio_out.outputCommands = ["drop *", "keep energyInLayer", "keep energyInCryo", ]
+podio_out.filename = "fccee_energyInCaloLayers_%ideg_%igev_%s.root" % (theta, momentum, uuid.uuid4().hex[0:16])
 
 # ApplicationMgr
 from Configurables import ApplicationMgr
@@ -129,13 +119,13 @@ ApplicationMgr(TopAlg=[genalg_pgun,
                        hepmc_converter,
                        geantsim,
                        createcellsBarrel,
-                       hist,
-                       out],
+                       caloLayers,
+                       podio_out],
                EvtSel='NONE',
                EvtMax=10,
                # order is important, as GeoSvc is needed by G4SimSvc
                ExtSvc=[podioevent,
                        geoservice,
                        geantservice,
-                       audsvc],
-               OutputLevel=DEBUG)
+                       audsvc]
+               )
